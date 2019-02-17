@@ -869,10 +869,14 @@ const nodeDelete = ({
     temporalArgs
   );
   let [preparedParams] = buildCypherParameters({ args, params });
+  const predicateClauses = [...temporalClauses]
+    .filter(predicate => !!predicate)
+    .join(' AND ');
+  const predicate = predicateClauses ? `WHERE ${predicateClauses} ` : '';
   let query = `MATCH (${safeVariableName}:${safeLabelName}${
     temporalClauses.length > 0
-      ? `) WHERE ${temporalClauses.join(' AND ')}`
-      : ` {${primaryKeyArgName}: $${primaryKeyArgName}})`
+      ? `) ${predicate}`
+      : ` {${primaryKeyArgName}: $${primaryKeyArgName}}) ${predicate}`
   }`;
   const [subQuery, subParams] = buildCypherSelection({
     initial: ``,
@@ -977,12 +981,20 @@ const relationshipCreate = ({
     fromTemporalArgs,
     'from'
   );
+  const fromPredicateClauses = [...fromTemporalClauses]
+    .filter(predicate => !!predicate)
+    .join(' AND ');
+  const fromPredicate = fromPredicateClauses ? `WHERE ${fromPredicateClauses} ` : '';
   const toTemporalClauses = temporalPredicateClauses(
     preparedParams.to,
     toVariable,
     toTemporalArgs,
     'to'
   );
+  const toPredicateClauses = [...toTemporalClauses]
+    .filter(predicate => !!predicate)
+    .join(' AND ');
+  const toPredicate = toPredicateClauses ? `WHERE ${toPredicateClauses} ` : '';
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
     selections,
@@ -1002,15 +1014,15 @@ const relationshipCreate = ({
       MATCH (${fromVariable}:${fromLabel} ${
     fromTemporalClauses && fromTemporalClauses.length > 0
       ? // uses either a WHERE clause for managed type primary keys (temporal, etc.)
-        `) WHERE ${fromTemporalClauses.join(' AND ')} `
+        `) ${fromPredicate}`
       : // or a an internal matching clause for normal, scalar property primary keys
         // NOTE this will need to change if we at some point allow for multi field node selection
-        `{${fromParam}: $from.${fromParam}})`
+        `{${fromParam}: $from.${fromParam}}) ${fromPredicate}`
   }
       MATCH (${toVariable}:${toLabel} ${
     toTemporalClauses && toTemporalClauses.length > 0
-      ? `) WHERE ${toTemporalClauses.join(' AND ')} `
-      : `{${toParam}: $to.${toParam}})`
+      ? `) ${toPredicate} `
+      : `{${toParam}: $to.${toParam}}) ${toPredicate}`
   }
       CREATE (${fromVariable})-[${relationshipVariable}:${relationshipLabel}${
     paramStatements.length > 0 ? ` {${paramStatements.join(',')}}` : ''
@@ -1095,12 +1107,20 @@ const relationshipDelete = ({
     fromTemporalArgs,
     'from'
   );
+  const fromPredicateClauses = [...fromTemporalClauses]
+    .filter(predicate => !!predicate)
+    .join(' AND ');
+  const fromPredicate = fromPredicateClauses ? `WHERE ${fromPredicateClauses} ` : '';
   const toTemporalClauses = temporalPredicateClauses(
     params.to,
     toVariable,
     toTemporalArgs,
     'to'
   );
+  const toPredicateClauses = [...toTemporalClauses]
+    .filter(predicate => !!predicate)
+    .join(' AND ');
+  const toPredicate = toPredicateClauses ? `WHERE ${toPredicateClauses} ` : '';
   // TODO cleaner semantics: remove use of _ prefixes in root variableNames and variableName
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
@@ -1121,14 +1141,14 @@ const relationshipDelete = ({
       MATCH (${fromVariable}:${fromLabel} ${
     fromTemporalClauses && fromTemporalClauses.length > 0
       ? // uses either a WHERE clause for managed type primary keys (temporal, etc.)
-        `) WHERE ${fromTemporalClauses.join(' AND ')} `
+        `) ${fromPredicate} `
       : // or a an internal matching clause for normal, scalar property primary keys
-        `{${fromParam}: $from.${fromParam}})`
+        `{${fromParam}: $from.${fromParam}}) ${fromPredicate}`
   }
       MATCH (${toVariable}:${toLabel} ${
     toTemporalClauses && toTemporalClauses.length > 0
-      ? `) WHERE ${toTemporalClauses.join(' AND ')} `
-      : `{${toParam}: $to.${toParam}})`
+      ? `) ${toPredicate} `
+      : `{${toParam}: $to.${toParam}}) ${toPredicate}`
   }
       OPTIONAL MATCH (${fromVariable})-[${relationshipVariable}:${relationshipLabel}]->(${toVariable})
       DELETE ${relationshipVariable}
