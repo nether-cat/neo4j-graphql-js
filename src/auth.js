@@ -28,9 +28,9 @@ export const checkRequestError = context => {
  *  injected into context object
  *  based on the type of Query/Mutation.
  */
-export const getAccessControlPredicates = (context, resolveInfo) => {
+export const getAccessControlParams = (context, resolveInfo) => {
   if (context == null || context.AccessControl == undefined) {
-    return [];
+    return { matchStatements: '', mergeHeader: '', whereStatements: [] };
   } else {
     if (isMutation(resolveInfo)) {
       if (getMutationCypherDirective(resolveInfo)) {
@@ -39,7 +39,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else if (isCreateMutation(resolveInfo)) {
         // TODO: validate CreateMutation aclFactory output for use in nodeCreate
         return context.AccessControl.createMutation.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.createMutation.aclFactory(
               context,
               resolveInfo
@@ -47,7 +47,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else if (isUpdateMutation(resolveInfo)) {
         // TODO: validate updateMutation aclFactory output for use in nodeUpdate
         return context.AccessControl.updateMutation.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.updateMutation.aclFactory(
               context,
               resolveInfo
@@ -55,7 +55,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else if (isDeleteMutation(resolveInfo)) {
         // TODO: validate deleteMutation aclFactory output for use in nodeDelete
         return context.AccessControl.deleteMutation.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.deleteMutation.aclFactory(
               context,
               resolveInfo
@@ -63,7 +63,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else if (isAddMutation(resolveInfo)) {
         // TODO: validate addRelationship aclFactory output for use in relationshipCreate
         return context.AccessControl.addRelationship.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.addRelationship.aclFactory(
               context,
               resolveInfo
@@ -71,7 +71,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else if (isRemoveMutation(resolveInfo)) {
         // TODO: validate removeRelationship aclFactory output for use in relationshipDelete
         return context.AccessControl.removeRelationship.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.removeRelationship.aclFactory(
               context,
               resolveInfo
@@ -87,7 +87,7 @@ export const getAccessControlPredicates = (context, resolveInfo) => {
       } else {
         // TODO: validate nodeQuery aclFactory output for use in nodeQuery
         return context.AccessControl.nodeQuery.aclFactory == undefined
-          ? []
+          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
           : context.AccessControl.nodeQuery.aclFactory(context, resolveInfo);
       }
     }
