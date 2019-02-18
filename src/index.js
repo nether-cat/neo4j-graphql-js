@@ -15,7 +15,7 @@ import {
   makeAugmentedExecutableSchema,
   addTemporalTypes
 } from './augment';
-import { checkRequestError, getAccessControlPredicates } from './auth';
+import { checkRequestError, getAccessControlParams } from './auth';
 import { translateMutation, translateQuery } from './translate';
 
 export async function neo4jgraphql(
@@ -68,7 +68,7 @@ export function cypherQuery(
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
   const selections = getQuerySelections(resolveInfo);
-  const accessParams = getAccessControlPredicates(context, resolveInfo);
+  const accessParams = getAccessControlParams(context, resolveInfo);
   return translateQuery({
     resolveInfo,
     schemaType,
@@ -92,7 +92,7 @@ export function cypherMutation(
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
   const selections = getMutationSelections(resolveInfo);
-  const accessParams = getAccessControlPredicates(context, resolveInfo);
+  const accessParams = getAccessControlParams(context, resolveInfo);
   return translateMutation({
     resolveInfo,
     schemaType,

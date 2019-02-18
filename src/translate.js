@@ -625,12 +625,17 @@ const nodeQuery = ({
     (value, key) => `${safeVariableName}.${safeVar(key)} IN $${key}`
   );
 
+  const accessPredicates =
+    typeof accessParams.whereClauses !== 'undefined'
+      ? accessParams.whereClauses
+      : [];
+
   const predicateClauses = [
     idWherePredicate,
     ...nullFieldPredicates,
     ...temporalClauses,
     ...arrayPredicates,
-    ...accessParams
+    ...accessPredicates
   ]
     .filter(predicate => !!predicate)
     .join(' AND ');
@@ -794,10 +799,15 @@ const nodeCreate = ({
     resolveInfo,
     paramIndex: 1
   });
-  // TODO: If accessParams, then use MATCH-MERGE, else use CREATE
   params = { ...preparedParams, ...subParams };
-  const query = `
-    CREATE (${safeVariableName}:${safeLabelName} {${paramStatements.join(',')}})
+  // If accessParams, then use MATCH-MERGE, else use CREATE
+  let query = `
+    ${
+      accessParams == true
+        ? `${!accessParams.matchStatements ? '' : accessParams.matchStatements}
+      MERGE ${!accessParams.mergeHeader ? '' : accessParams.mergeHeader}`
+        : `CREATE `
+    }(${safeVariableName}:${safeLabelName} {${paramStatements.join(',')}})
     RETURN ${safeVariableName} {${subQuery}} AS ${safeVariableName}
   `;
   return [query, params];
@@ -829,7 +839,11 @@ const nodeUpdate = ({
     temporalArgs,
     'params'
   );
-  const predicateClauses = [...temporalClauses, ...accessParams]
+  const accessPredicates =
+    typeof accessParams.whereClauses !== 'undefined'
+      ? accessParams.whereClauses
+      : [];
+  const predicateClauses = [...temporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const predicate = predicateClauses ? `WHERE ${predicateClauses} ` : '';
@@ -883,7 +897,11 @@ const nodeDelete = ({
     temporalArgs
   );
   let [preparedParams] = buildCypherParameters({ args, params });
-  const predicateClauses = [...temporalClauses, ...accessParams]
+  const accessPredicates =
+    typeof accessParams.whereClauses !== 'undefined'
+      ? accessParams.whereClauses
+      : [];
+  const predicateClauses = [...temporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const predicate = predicateClauses ? ` WHERE ${predicateClauses}` : '';
@@ -996,7 +1014,11 @@ const relationshipCreate = ({
     fromTemporalArgs,
     'from'
   );
-  const fromPredicateClauses = [...fromTemporalClauses, ...accessParams]
+  const accessPredicates =
+    typeof accessParams.whereClauses !== 'undefined'
+      ? accessParams.whereClauses
+      : [];
+  const fromPredicateClauses = [...fromTemporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const fromPredicate = fromPredicateClauses
@@ -1008,7 +1030,7 @@ const relationshipCreate = ({
     toTemporalArgs,
     'to'
   );
-  const toPredicateClauses = [...toTemporalClauses, ...accessParams]
+  const toPredicateClauses = [...toTemporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';
@@ -1125,7 +1147,11 @@ const relationshipDelete = ({
     fromTemporalArgs,
     'from'
   );
-  const fromPredicateClauses = [...fromTemporalClauses, ...accessParams]
+  const accessPredicates =
+    typeof accessParams.whereClauses !== 'undefined'
+      ? accessParams.whereClauses
+      : [];
+  const fromPredicateClauses = [...fromTemporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const fromPredicate = fromPredicateClauses
@@ -1137,7 +1163,7 @@ const relationshipDelete = ({
     toTemporalArgs,
     'to'
   );
-  const toPredicateClauses = [...toTemporalClauses, ...accessParams]
+  const toPredicateClauses = [...toTemporalClauses, ...accessPredicates]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';

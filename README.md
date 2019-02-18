@@ -81,6 +81,38 @@ const resolvers = {
 };
 ```
 
+## Access Control
+
+### Access Control Basics
+
+GraphQL recommends implementing authorization/access control through the business logic layer. To accomplish this using `neo4j-graphql.js`, you can implement fine-grained access control within auto-generated queries and mutations by defining and passing generator functions in the `context` object under the `context.AccessControl` property. The structure of this property is as follows:
+
+```javascript
+import { typeIdentifiers, safeVar } from 'neo4j-graphql-js/dist/utils'
+
+context.AccessControl = {
+  nodeQuery: {
+    aclFactory: (context, resolveInfo) => {
+      const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
+      const safeVariableName = safeVar(variableName);
+      return {
+        matchStatements: '', // Only used for createMutation
+        mergeHeader: '', // Only used for createMutation
+        whereStatements: [`(u:User {id: ${context.user.userID})-[:CAN_READ]-(${safeVariableName})`]
+      };
+    },
+    // Whitelist/Blacklist not yet implemented.
+    Whitelist: [''],
+    Blacklist: ['']
+  },
+  createMutation: { ... },
+  updateMutation: { ... },
+  deleteMutation: { ... },
+  addRelationship: { ... },
+  removeRelationship: { ... }
+};
+```
+
 ## What is `neo4j-graphql.js`
 
 A package to make it easier to use GraphQL and [Neo4j](https://neo4j.com/) together. `neo4j-graphql.js` translates GraphQL queries to a single [Cypher](https://neo4j.com/developer/cypher/) query, eliminating the need to write queries in GraphQL resolvers and for batching queries. It also exposes the Cypher query language through GraphQL via the `@cypher` schema directive.
