@@ -872,7 +872,7 @@ const nodeDelete = ({
   const predicateClauses = [...temporalClauses]
     .filter(predicate => !!predicate)
     .join(' AND ');
-  const predicate = predicateClauses ? ` WHERE ${predicateClauses} ` : '';
+  const predicate = predicateClauses ? ` WHERE ${predicateClauses}` : '';
   let query = `MATCH (${safeVariableName}:${safeLabelName}${
     temporalClauses.length > 0
       ? `)${predicate}`
@@ -996,7 +996,7 @@ const relationshipCreate = ({
   const toPredicateClauses = [...toTemporalClauses]
     .filter(predicate => !!predicate)
     .join(' AND ');
-  const toPredicate = toPredicateClauses ? `WHERE ${toPredicateClauses} ` : '';
+  const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
     selections,
@@ -1113,7 +1113,7 @@ const relationshipDelete = ({
     .filter(predicate => !!predicate)
     .join(' AND ');
   const fromPredicate = fromPredicateClauses
-    ? ` WHERE ${fromPredicateClauses} `
+    ? ` WHERE ${fromPredicateClauses}`
     : '';
   const toTemporalClauses = temporalPredicateClauses(
     params.to,
@@ -1124,7 +1124,7 @@ const relationshipDelete = ({
   const toPredicateClauses = [...toTemporalClauses]
     .filter(predicate => !!predicate)
     .join(' AND ');
-  const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses} ` : '';
+  const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';
   // TODO cleaner semantics: remove use of _ prefixes in root variableNames and variableName
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
