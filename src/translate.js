@@ -482,7 +482,8 @@ export const translateQuery = ({
   offset,
   _id,
   orderBy,
-  otherParams
+  otherParams,
+  accessParams
 }) => {
   const [nullParams, nonNullParams] = filterNullParams({
     offset,
@@ -537,7 +538,8 @@ export const translateQuery = ({
       nonNullParams,
       filterParams,
       temporalArgs,
-      _id
+      _id,
+      accessParams
     });
   }
 };
@@ -590,7 +592,8 @@ const nodeQuery = ({
   nonNullParams,
   filterParams,
   temporalArgs,
-  _id
+  _id,
+  accessParams
 }) => {
   const safeVariableName = safeVar(variableName);
   const safeLabelName = safeLabel(typeName);
@@ -626,7 +629,8 @@ const nodeQuery = ({
     idWherePredicate,
     ...nullFieldPredicates,
     ...temporalClauses,
-    ...arrayPredicates
+    ...arrayPredicates,
+    ...accessParams
   ]
     .filter(predicate => !!predicate)
     .join(' AND ');
@@ -648,7 +652,8 @@ export const translateMutation = ({
   typeName,
   first,
   offset,
-  otherParams
+  otherParams,
+  accessParams
 }) => {
   const outerSkipLimit = getOuterSkipLimit(first);
   const orderByValue = computeOrderBy(resolveInfo, selections);
@@ -678,28 +683,33 @@ export const translateMutation = ({
     return nodeCreate({
       ...mutationInfo,
       variableName,
-      typeName
+      typeName,
+      accessParams
     });
   } else if (isUpdateMutation(resolveInfo)) {
     return nodeUpdate({
       ...mutationInfo,
       variableName,
-      typeName
+      typeName,
+      accessParams
     });
   } else if (isDeleteMutation(resolveInfo)) {
     return nodeDelete({
       ...mutationInfo,
       variableName,
-      typeName
+      typeName,
+      accessParams
     });
   } else if (isAddMutation(resolveInfo)) {
     return relationshipCreate({
-      ...mutationInfo
+      ...mutationInfo,
+      accessParams
     });
   } else if (isRemoveMutation(resolveInfo)) {
     return relationshipDelete({
       ...mutationInfo,
-      variableName
+      variableName,
+      accessParams
     });
   } else {
     // throw error - don't know how to handle this type of mutation
@@ -758,7 +768,8 @@ const nodeCreate = ({
   selections,
   schemaType,
   resolveInfo,
-  params
+  params,
+  accessParams
 }) => {
   const safeVariableName = safeVar(variableName);
   const safeLabelName = safeLabel(typeName);
@@ -783,6 +794,7 @@ const nodeCreate = ({
     resolveInfo,
     paramIndex: 1
   });
+  // TODO: If accessParams, then use MATCH-MERGE, else use CREATE
   params = { ...preparedParams, ...subParams };
   const query = `
     CREATE (${safeVariableName}:${safeLabelName} {${paramStatements.join(',')}})
@@ -797,7 +809,8 @@ const nodeUpdate = ({
   typeName,
   selections,
   schemaType,
-  params
+  params,
+  accessParams
 }) => {
   const safeVariableName = safeVar(variableName);
   const safeLabelName = safeLabel(typeName);
@@ -816,7 +829,7 @@ const nodeUpdate = ({
     temporalArgs,
     'params'
   );
-  const predicateClauses = [...temporalClauses]
+  const predicateClauses = [...temporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const predicate = predicateClauses ? `WHERE ${predicateClauses} ` : '';
@@ -854,7 +867,8 @@ const nodeDelete = ({
   variableName,
   typeName,
   schemaType,
-  params
+  params,
+  accessParams
 }) => {
   const safeVariableName = safeVar(variableName);
   const safeLabelName = safeLabel(typeName);
@@ -869,7 +883,7 @@ const nodeDelete = ({
     temporalArgs
   );
   let [preparedParams] = buildCypherParameters({ args, params });
-  const predicateClauses = [...temporalClauses]
+  const predicateClauses = [...temporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const predicate = predicateClauses ? ` WHERE ${predicateClauses}` : '';
@@ -902,7 +916,8 @@ const relationshipCreate = ({
   resolveInfo,
   selections,
   schemaType,
-  params
+  params,
+  accessParams
 }) => {
   let mutationMeta, relationshipNameArg, fromTypeArg, toTypeArg;
   try {
@@ -981,7 +996,7 @@ const relationshipCreate = ({
     fromTemporalArgs,
     'from'
   );
-  const fromPredicateClauses = [...fromTemporalClauses]
+  const fromPredicateClauses = [...fromTemporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const fromPredicate = fromPredicateClauses
@@ -993,7 +1008,7 @@ const relationshipCreate = ({
     toTemporalArgs,
     'to'
   );
-  const toPredicateClauses = [...toTemporalClauses]
+  const toPredicateClauses = [...toTemporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';
@@ -1039,7 +1054,8 @@ const relationshipDelete = ({
   selections,
   variableName,
   schemaType,
-  params
+  params,
+  accessParams
 }) => {
   let mutationMeta, relationshipNameArg, fromTypeArg, toTypeArg;
   try {
@@ -1109,7 +1125,7 @@ const relationshipDelete = ({
     fromTemporalArgs,
     'from'
   );
-  const fromPredicateClauses = [...fromTemporalClauses]
+  const fromPredicateClauses = [...fromTemporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const fromPredicate = fromPredicateClauses
@@ -1121,7 +1137,7 @@ const relationshipDelete = ({
     toTemporalArgs,
     'to'
   );
-  const toPredicateClauses = [...toTemporalClauses]
+  const toPredicateClauses = [...toTemporalClauses, ...accessParams]
     .filter(predicate => !!predicate)
     .join(' AND ');
   const toPredicate = toPredicateClauses ? ` WHERE ${toPredicateClauses}` : '';
