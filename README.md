@@ -155,8 +155,6 @@ Alternatively, if the ACL function had been defined as follows:
 
 ```javascript
     aclFactory: (context, resolveInfo) => {
-      const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
-      const safeVariableName = safeVar(variableName);
       return {
         matchStatements: [],
         mainHeader: `(u:User {id: ${context.user.userID})-[:CAN_READ]->`,
