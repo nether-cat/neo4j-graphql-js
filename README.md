@@ -96,9 +96,9 @@ context.AccessControl = {
       const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
       const safeVariableName = safeVar(variableName);
       return {
-        matchStatements: '', // Only used for createMutation
-        mergeHeader: '', // Only used for createMutation
-        whereStatements: [`(u:User {id: ${context.user.userID})-[:CAN_READ]-(${safeVariableName})`]
+        matchStatements: ['MATCH (u:User {id: ${context.user.userID})'],
+        mainHeader: '',
+        whereStatements: [`(u)-[:CAN_READ]->(${safeVariableName})`]
       };
     },
     // Whitelist/Blacklist not yet implemented.
@@ -111,6 +111,68 @@ context.AccessControl = {
   addRelationship: { ... },
   removeRelationship: { ... }
 };
+```
+
+### Example (as envisioned)
+
+Without defining any ACL function, the following GraphQL query:
+
+```
+{
+  Movie(title: "River Runs Through It, A") {
+    title
+    year
+    imdbRating
+    actors {
+      name
+    }
+  }
+}
+```
+
+is translated into:
+
+```
+MATCH (movie:Movie {title:"River Runs Through It, A"})
+RETURN movie { .title , .year , .imdbRating,
+  actors: [(movie)<-[ACTED_IN]-(movie_actors:Actor) | movie_actors { .name }] }
+AS movie
+SKIP 0
+```
+
+With the ACL function defined above in the Access Control Basics subsection, it is translated into:
+
+```
+MATCH (u:User {id: YOURUSERID)
+MATCH (movie:Movie {title:"River Runs Through It, A"}) WHERE (u)-[:CAN_READ]->(movie)
+RETURN movie { .title , .year , .imdbRating,
+  actors: [(movie)<-[ACTED_IN]-(movie_actors:Actor) | movie_actors { .name }] }
+AS movie
+SKIP 0
+```
+
+Alternatively, if the ACL function had been defined as follows:
+
+```javascript
+    aclFactory: (context, resolveInfo) => {
+      const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
+      const safeVariableName = safeVar(variableName);
+      return {
+        matchStatements: [],
+        mainHeader: `(u:User {id: ${context.user.userID})-[:CAN_READ]->`,
+        whereStatements: []
+      };
+    }
+```
+
+It would have been translated into:
+
+```
+MATCH (u:User {id: YOURUSERID)-[:CAN_READ]->(movie:Movie {title:"River Runs Through It, A"})
+RETURN movie { .title , .year , .imdbRating,
+  actors: [(movie)<-[ACTED_IN]-(movie_actors:Actor) | movie_actors { .name }] }
+AS movie
+SKIP 0
 ```
 
 ## What is `neo4j-graphql.js`
