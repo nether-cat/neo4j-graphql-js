@@ -98,7 +98,7 @@ context.AccessControl = {
       return {
         matchStatements: '', // Only used for createMutation
         mergeHeader: '', // Only used for createMutation
-        whereStatements: [`(u:User {id: ${context.user.userID})-[:CAN_READ]-(${safeVariableName})`]
+        whereStatements: [`(u:User {id: ${context.user.userID})-[:CAN_READ]->(${safeVariableName})`]
       };
     },
     // Whitelist/Blacklist not yet implemented.
