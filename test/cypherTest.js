@@ -4,6 +4,10 @@ import {
   augmentedSchemaCypherTestRunner
 } from './helpers/cypherTestHelpers';
 
+const CYPHER_PARAMS = {
+  userId: 'user-id'
+};
+
 test('simple Cypher query', t => {
   const graphQLQuery = `{
     Movie(title: "River Runs Through It, A") {
@@ -17,6 +21,7 @@ test('simple Cypher query', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -39,6 +44,7 @@ test('Simple skip limit', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: 1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -58,7 +64,7 @@ test('Cypher projection skip limit', t => {
     }
   }`,
     expectedCypherQuery =
-      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`) | movie_actors { .name }] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, first: 3, offset: 0}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
+      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`) | movie_actors { .name }] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, cypherParams: $cypherParams, offset: 0, first: $1_first}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
 
   t.plan(3);
   return Promise.all([
@@ -66,6 +72,7 @@ test('Cypher projection skip limit', t => {
       title: 'River Runs Through It, A',
       '1_first': 3,
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -87,6 +94,7 @@ test('Handle Query with name not aligning to type', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       year: 2010,
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -106,6 +114,7 @@ test('Query without arguments, non-null type', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -127,6 +136,7 @@ test('Query single object', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       movieId: '18',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -152,6 +162,7 @@ test('Query single object relation', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       movieId: '3100',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -179,6 +190,7 @@ test('Query single object and array of objects relations', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       movieId: '3100',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -209,7 +221,7 @@ test('Deeply nested object query', t => {
     }
   }
 }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` { .title ,actors: [(\`movie\`)<-[:\`ACTED_IN\`]-(\`movie_actors\`:\`Actor\`) | movie_actors { .name ,movies: [(\`movie_actors\`)-[:\`ACTED_IN\`]->(\`movie_actors_movies\`:\`Movie\`) | movie_actors_movies { .title ,actors: [(\`movie_actors_movies\`)<-[:\`ACTED_IN\`]-(\`movie_actors_movies_actors\`:\`Actor\`{name:$1_name}) | movie_actors_movies_actors { .name ,movies: [(\`movie_actors_movies_actors\`)-[:\`ACTED_IN\`]->(\`movie_actors_movies_actors_movies\`:\`Movie\`) | movie_actors_movies_actors_movies { .title , .year ,similar: [ movie_actors_movies_actors_movies_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie_actors_movies_actors_movies, first: 3, offset: 0}, true) | movie_actors_movies_actors_movies_similar { .title , .year }][..3] }] }] }] }] } AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` { .title ,actors: [(\`movie\`)<-[:\`ACTED_IN\`]-(\`movie_actors\`:\`Actor\`) | movie_actors { .name ,movies: [(\`movie_actors\`)-[:\`ACTED_IN\`]->(\`movie_actors_movies\`:\`Movie\`) | movie_actors_movies { .title ,actors: [(\`movie_actors_movies\`)<-[:\`ACTED_IN\`]-(\`movie_actors_movies_actors\`:\`Actor\`{name:$1_name}) | movie_actors_movies_actors { .name ,movies: [(\`movie_actors_movies_actors\`)-[:\`ACTED_IN\`]->(\`movie_actors_movies_actors_movies\`:\`Movie\`) | movie_actors_movies_actors_movies { .title , .year ,similar: [ movie_actors_movies_actors_movies_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie_actors_movies_actors_movies, cypherParams: $cypherParams, offset: 0, first: $2_first}, true) | movie_actors_movies_actors_movies_similar { .title , .year }][..3] }] }] }] }] } AS \`movie\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
@@ -218,6 +230,7 @@ test('Deeply nested object query', t => {
       '1_name': 'Tom Hanks',
       '2_first': 3,
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -239,6 +252,7 @@ test('Handle meta field at beginning of selection set', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -261,6 +275,7 @@ test('Handle meta field at end of selection set', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -284,6 +299,7 @@ test('Handle meta field in middle of selection set', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -300,13 +316,14 @@ test('Handle @cypher directive without any params for sub-query', t => {
     }
 
   }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {mostSimilar: head([ movie_mostSimilar IN apoc.cypher.runFirstColumn("WITH {this} AS this RETURN this", {this: movie}, true) | movie_mostSimilar { .title , .year }]) } AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {mostSimilar: head([ movie_mostSimilar IN apoc.cypher.runFirstColumn("WITH {this} AS this RETURN this", {this: movie, cypherParams: $cypherParams}, true) | movie_mostSimilar { .title , .year }]) } AS \`movie\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -320,12 +337,13 @@ test('Pass @cypher directive default params to sub-query', t => {
     }
 
   }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie, scale: 3}, false)} AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie, cypherParams: $cypherParams, scale: 3}, false)} AS \`movie\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0,
       title: 'River Runs Through It, A'
     }),
@@ -340,12 +358,13 @@ test('Pass @cypher directive params to sub-query', t => {
     }
 
   }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie, scale: 10}, false)} AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {title:$title}) RETURN \`movie\` {scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie, cypherParams: $cypherParams, scale: $1_scale}, false)} AS \`movie\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0,
       title: 'River Runs Through It, A',
       '1_scale': 10
@@ -368,6 +387,7 @@ test('Query for Neo4js internal _id', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -389,6 +409,7 @@ test('Query for Neo4js internal _id and another param before _id', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -409,6 +430,7 @@ test('Query for Neo4js internal _id and another param after _id', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0,
       year: 2010
     }),
@@ -430,6 +452,7 @@ test('Query for Neo4js internal _id by dedicated Query MovieBy_Id(_id: String!)'
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -449,6 +472,7 @@ test(`Query for null value translates to 'IS NULL' WHERE clause`, t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -469,6 +493,7 @@ test(`Query for null value combined with internal ID and another param`, t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       year: 2010,
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -489,13 +514,14 @@ test('Cypher subquery filters', t => {
       }
     }`,
     expectedCypherQuery =
-      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`{name:$1_name}) | movie_actors { .name }] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, first: 3, offset: 0}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
+      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`{name:$1_name}) | movie_actors { .name }] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, cypherParams: $cypherParams, offset: 0, first: $3_first}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
 
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0,
       '1_name': 'Tom Hanks',
       '3_first': 3
@@ -518,12 +544,13 @@ test('Cypher subquery filters with paging', t => {
       }
     }`,
     expectedCypherQuery =
-      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`{name:$1_name}) | movie_actors { .name }][..3] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, first: 3, offset: 0}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
+      'MATCH (`movie`:`Movie` {title:$title}) RETURN `movie` { .title ,actors: [(`movie`)<-[:`ACTED_IN`]-(`movie_actors`:`Actor`{name:$1_name}) | movie_actors { .name }][..3] ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, cypherParams: $cypherParams, offset: 0, first: $3_first}, true) | movie_similar { .title }][..3] } AS `movie` SKIP $offset';
 
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       title: 'River Runs Through It, A',
+      cypherParams: CYPHER_PARAMS,
       first: -1,
       offset: 0,
       '1_first': 3,
@@ -545,8 +572,7 @@ test('Handle @cypher directive on Query Type', t => {
   }
 }
   `,
-    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("MATCH (g:Genre) WHERE toLower(g.name) CONTAINS toLower($substring) RETURN g", {offset:$offset, first:$first, substring:$substring}, True) AS x UNWIND x AS \`genre\`
-    RETURN \`genre\` { .name ,movies: [(\`genre\`)<-[:\`IN_GENRE\`]-(\`genre_movies\`:\`Movie\`) | genre_movies { .title }][..3] } AS \`genre\` SKIP $offset`;
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("MATCH (g:Genre) WHERE toLower(g.name) CONTAINS toLower($substring) RETURN g", {offset:$offset, first:$first, substring:$substring, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`genre\` RETURN \`genre\` { .name ,movies: [(\`genre\`)<-[:\`IN_GENRE\`]-(\`genre_movies\`:\`Movie\`) | genre_movies { .title }][..3] } AS \`genre\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
@@ -554,7 +580,8 @@ test('Handle @cypher directive on Query Type', t => {
       substring: 'Action',
       first: -1,
       offset: 0,
-      '1_first': 3
+      '1_first': 3,
+      cypherParams: CYPHER_PARAMS
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
   ]);
@@ -566,7 +593,7 @@ test.cb('Handle @cypher directive on Mutation type', t => {
     name
   }
 }`,
-    expectedCypherQuery = `CALL apoc.cypher.doIt("CREATE (g:Genre) SET g.name = $name RETURN g", {name:$name, first:$first, offset:$offset}) YIELD value
+    expectedCypherQuery = `CALL apoc.cypher.doIt("CREATE (g:Genre) SET g.name = $name RETURN g", {name:$name, first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
     WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`genre\`
     RETURN \`genre\` { .name } AS \`genre\` SKIP $offset`;
 
@@ -574,6 +601,7 @@ test.cb('Handle @cypher directive on Mutation type', t => {
   cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
     name: 'Wildlife Documentary',
     first: -1,
+    cypherParams: CYPHER_PARAMS,
     offset: 0
   });
 });
@@ -1015,7 +1043,7 @@ test('Handle GraphQL variables in nested selection - first/offset', t => {
     }
   }
 }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {year:$year}) RETURN \`movie\` { .title , .year ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, first: 3, offset: 0}, true) | movie_similar { .title }][..3] } AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {year:$year}) RETURN \`movie\` { .title , .year ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, cypherParams: $cypherParams, offset: 0, first: $1_first}, true) | movie_similar { .title }][..3] } AS \`movie\` SKIP $offset`;
 
   t.plan(3);
 
@@ -1027,6 +1055,7 @@ test('Handle GraphQL variables in nested selection - first/offset', t => {
       expectedCypherQuery,
       {
         '1_first': 3,
+        cypherParams: CYPHER_PARAMS,
         year: 2016,
         first: -1,
         offset: 0
@@ -1054,7 +1083,7 @@ test('Handle GraphQL variables in nest selection - @cypher param (not first/offs
 
   }
 }`,
-    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {year:$year}) RETURN \`movie\` { .title , .year ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, first: 3, offset: 0}, true) | movie_similar { .title ,scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie_similar, scale: 5}, false)}][..3] } AS \`movie\` SKIP $offset`;
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` {year:$year}) RETURN \`movie\` { .title , .year ,similar: [ movie_similar IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie, cypherParams: $cypherParams, offset: 0, first: $1_first}, true) | movie_similar { .title ,scaleRating: apoc.cypher.runFirstColumn("WITH $this AS this RETURN $scale * this.imdbRating", {this: movie_similar, cypherParams: $cypherParams, scale: $2_scale}, false)}][..3] } AS \`movie\` SKIP $offset`;
 
   t.plan(3);
   return Promise.all([
@@ -1068,7 +1097,8 @@ test('Handle GraphQL variables in nest selection - @cypher param (not first/offs
         first: -1,
         offset: 0,
         '1_first': 3,
-        '2_scale': 5
+        '2_scale': 5,
+        cypherParams: CYPHER_PARAMS
       }
     ),
     augmentedSchemaCypherTestRunner(
@@ -1100,6 +1130,7 @@ test('Return internal node id for _id field', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       year: 2016,
+      cypherParams: CYPHER_PARAMS,
       first: -1,
       offset: 0
     }),
@@ -1120,6 +1151,7 @@ test('Treat enum as a scalar', t => {
 
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
       first: -1,
       offset: 0
     }),
@@ -1147,6 +1179,7 @@ query getMovie {
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
       title: 'River Runs Through It, A',
       first: -1,
       offset: 0
@@ -1180,6 +1213,7 @@ query getMovie {
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
       title: 'River Runs Through It, A',
       first: -1,
       offset: 0
@@ -1209,6 +1243,7 @@ test('nested fragments', t => {
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
       year: 2010,
       first: -1,
       offset: 0
@@ -1237,6 +1272,7 @@ test('fragments on relations', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       year: 2010,
+      cypherParams: CYPHER_PARAMS,
       first: -1,
       offset: 0
     }),
@@ -1267,6 +1303,7 @@ test('nested fragments on relations', t => {
   t.plan(3);
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
       year: 2010,
       first: -1,
       offset: 0
@@ -3599,12 +3636,12 @@ test('Query nested list properties on relationship', t => {
 
 test('UUID value generated if no id value provided', t => {
   const graphQLQuery = `mutation {
-    CreateMovie(title: "Yo Dawg") {
+    CreateMovie(title: "Yo Dawg", released: {year: 2009, month: 6, day: 9}) {
       title
     }
   }`,
     expectedCypherQuery = `
-    CREATE (\`movie\`:\`Movie\` {movieId: apoc.create.uuid(),title:$params.title})
+    CREATE (\`movie\`:\`Movie\` {movieId: apoc.create.uuid(),title:$params.title,released: datetime($params.released)})
     RETURN \`movie\` { .title } AS \`movie\`
   `;
 
@@ -3624,6 +3661,7 @@ test('Create node with list arguments', t => {
       titles: ["A", "B"]
       imdbRatings: [5.5, 8.95]
       years: [2004, 2018]
+      released: {year: 1992, month: 10, day: 9}
       releases: [
         {
           year: 2020
@@ -3658,7 +3696,7 @@ test('Create node with list arguments', t => {
     }
   }`,
     expectedCypherQuery = `
-    CREATE (\`movie\`:\`Movie\` {movieId: apoc.create.uuid(),title:$params.title,years:$params.years,titles:$params.titles,imdbRatings:$params.imdbRatings,releases: [value IN $params.releases | datetime(value)]})
+    CREATE (\`movie\`:\`Movie\` {movieId: apoc.create.uuid(),title:$params.title,released: datetime($params.released),years:$params.years,titles:$params.titles,imdbRatings:$params.imdbRatings,releases: [value IN $params.releases | datetime(value)]})
     RETURN \`movie\` { .movieId , .title , .titles , .imdbRatings , .years ,releases: reduce(a = [], TEMPORAL_INSTANCE IN movie.releases | a + { year: TEMPORAL_INSTANCE.year , month: TEMPORAL_INSTANCE.month , day: TEMPORAL_INSTANCE.day , hour: TEMPORAL_INSTANCE.hour , second: TEMPORAL_INSTANCE.second , formatted: toString(TEMPORAL_INSTANCE) })} AS \`movie\`
   `;
 
@@ -3686,6 +3724,7 @@ test('Cypher array queries', t => {
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       year: [1999],
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -3711,7 +3750,8 @@ test('Cypher array sub queries', t => {
       year: [1998],
       '1_names': ['Jeff Bridges', 'John Goodman'],
       first: -1,
-      offset: 0
+      offset: 0,
+      cypherParams: CYPHER_PARAMS
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
   ]);
@@ -3756,6 +3796,7 @@ test('Query node with ignored field', t => {
   return Promise.all([
     cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
       first: -1,
+      cypherParams: CYPHER_PARAMS,
       offset: 0
     }),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
@@ -3891,6 +3932,480 @@ test('Deeply nested query using temporal orderBy', t => {
 
   t.plan(1);
   return Promise.all([
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher field with String payload using cypherParams', t => {
+  const graphQLQuery = `query {
+    User {
+      userId
+      currentUserId
+      name
+    }
+  }`,
+    expectedCypherQuery = `MATCH (\`user\`:\`User\` ) RETURN \`user\` { .userId ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user, cypherParams: $cypherParams, strArg: "Neo4j"}, false), .name } AS \`user\` SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle nested @cypher fields that use cypherParams', t => {
+  const graphQLQuery = `query {
+    User {
+      userId
+      currentUserId
+      name
+      friends {
+        to {
+          since
+          currentUserId
+          User {
+            name
+            currentUserId
+          }
+        }
+        from {
+          since
+          currentUserId
+        }
+      }
+      rated {
+        rating
+        currentUserId
+      }
+      favorites {
+        movieId
+        currentUserId
+      }
+    }
+  }`,
+    expectedCypherQuery = `MATCH (\`user\`:\`User\` ) RETURN \`user\` { .userId ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user, cypherParams: $cypherParams, strArg: "Neo4j"}, false), .name ,friends: {to: [(\`user\`)-[\`user_to_relation\`:\`FRIEND_OF\`]->(\`user_to\`:\`User\`) | user_to_relation { .since ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user_to_relation, cypherParams: $cypherParams}, false),User: user_to { .name ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user_to, cypherParams: $cypherParams, strArg: "Neo4j"}, false)} }] ,from: [(\`user\`)<-[\`user_from_relation\`:\`FRIEND_OF\`]-(\`user_from\`:\`User\`) | user_from_relation { .since ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user_from_relation, cypherParams: $cypherParams}, false)}] } ,rated: [(\`user\`)-[\`user_rated_relation\`:\`RATED\`]->(:\`Movie\`) | user_rated_relation { .rating ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user_rated_relation, cypherParams: $cypherParams}, false)}] ,favorites: [(\`user\`)-[:\`FAVORITED\`]->(\`user_favorites\`:\`Movie\`) | user_favorites { .movieId ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user_favorites, cypherParams: $cypherParams}, false)}] } AS \`user\` SKIP $offset`;
+
+  t.plan(1);
+  return Promise.all([
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query using cypherParams with String payload', t => {
+  const graphQLQuery = `query {
+    currentUserId
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS currentUserId", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`string\` RETURN \`string\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query using cypherParams with Object payload', t => {
+  const graphQLQuery = `query {
+    computedObjectWithCypherParams {
+      userId
+    }
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN { userId: $cypherParams.currentUserId }", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`currentUserId\` RETURN \`currentUserId\` { .userId } AS \`currentUserId\` SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with Boolean payload', t => {
+  const graphQLQuery = `query {
+    computedBoolean
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN true", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`boolean\` RETURN \`boolean\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with Int payload', t => {
+  const graphQLQuery = `query {
+    computedInt
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN 1", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`int\` RETURN \`int\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with Float payload', t => {
+  const graphQLQuery = `query {
+    computedFloat
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN 3.14", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`float\` RETURN \`float\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with String list payload', t => {
+  const graphQLQuery = `query {
+    computedStringList
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("UNWIND ['hello', 'world'] AS stringList RETURN stringList", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`string\` RETURN \`string\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with Int list payload', t => {
+  const graphQLQuery = `query {
+    computedIntList
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("UNWIND [1, 2, 3] AS intList RETURN intList", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`int\` RETURN \`int\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher query with Temporal payload', t => {
+  const graphQLQuery = `query {
+    computedTemporal {
+      year
+      month
+      day
+      hour
+      minute
+      second
+      microsecond
+      millisecond
+      nanosecond    
+      timezone
+      formatted
+    }
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("WITH datetime() AS now RETURN { year: now.year, month: now.month , day: now.day , hour: now.hour , minute: now.minute , second: now.second , millisecond: now.millisecond , microsecond: now.microsecond , nanosecond: now.nanosecond , timezone: now.timezone , formatted: toString(now) }", {offset:$offset, first:$first, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`_Neo4jDateTime\` RETURN \`_Neo4jDateTime\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher mutation using cypherParams with String payload', t => {
+  const graphQLQuery = `mutation {
+    currentUserId
+  }`,
+    expectedCypherQuery = `CALL apoc.cypher.doIt("RETURN $cypherParams.currentUserId", {first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
+    WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`string\`
+    RETURN \`string\` `;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      cypherParams: CYPHER_PARAMS,
+      first: -1,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher mutation using cypherParams with Object payload', t => {
+  const graphQLQuery = `mutation {
+    computedObjectWithCypherParams {
+      userId
+    }
+  }`,
+    expectedCypherQuery = `CALL apoc.cypher.doIt("RETURN { userId: $cypherParams.currentUserId }", {first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
+    WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`currentUserId\`
+    RETURN \`currentUserId\` { .userId } AS \`currentUserId\` SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher mutation with String list payload', t => {
+  const graphQLQuery = `mutation {
+    computedStringList
+  }`,
+    expectedCypherQuery = `CALL apoc.cypher.doIt("UNWIND ['hello', 'world'] AS stringList RETURN stringList", {first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
+    WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`string\`
+    RETURN \`string\` `;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher mutation with Temporal payload', t => {
+  const graphQLQuery = `mutation {
+    computedTemporal {
+      year
+      month
+      day
+      hour
+      minute
+      second
+      microsecond
+      millisecond
+      nanosecond    
+      timezone
+      formatted
+    }
+  }`,
+    expectedCypherQuery = `CALL apoc.cypher.doIt("WITH datetime() AS now RETURN { year: now.year, month: now.month , day: now.day , hour: now.hour , minute: now.minute , second: now.second , millisecond: now.millisecond , microsecond: now.microsecond , nanosecond: now.nanosecond , timezone: now.timezone , formatted: toString(now) }", {first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
+    WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`_Neo4jDateTime\`
+    RETURN \`_Neo4jDateTime\` `;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery, {
+      first: -1,
+      cypherParams: CYPHER_PARAMS,
+      offset: 0
+    }),
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle nested @cypher fields using parameterized arguments and cypherParams', t => {
+  const graphQLQuery = `query someQuery(
+    $strArg1: String
+    $strArg2: String
+    $strArg3: String
+    $strInputArg: strInput
+  ) {
+    Movie {
+      _id
+      currentUserId(strArg: $strArg1)
+      ratings {
+        currentUserId(strArg: $strArg2)
+        User {
+          name
+          currentUserId(strArg: $strArg3, strInputArg: $strInputArg)
+        }
+      }
+    }
+  }`,
+    expectedCypherQuery = `MATCH (\`movie\`:\`Movie\` ) RETURN \`movie\` {_id: ID(\`movie\`),currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: movie, cypherParams: $cypherParams, strArg: $1_strArg}, false),ratings: [(\`movie\`)<-[\`movie_ratings_relation\`:\`RATED\`]-(:\`User\`) | movie_ratings_relation {currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: movie_ratings_relation, cypherParams: $cypherParams, strArg: $2_strArg}, false),User: head([(:\`Movie\`)<-[\`movie_ratings_relation\`]-(\`movie_ratings_User\`:\`User\`) | movie_ratings_User { .name ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: movie_ratings_User, cypherParams: $cypherParams, strArg: $3_strArg, strInputArg: $3_strInputArg}, false)}]) }] } AS \`movie\` SKIP $offset`;
+
+  t.plan(1);
+  return Promise.all([
+    augmentedSchemaCypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg1: 'Yo Dawg',
+        strArg2: 'Yoo Dawg',
+        strArg3: 'Yooo Dawg',
+        strInputArg: {
+          strArg: 'Yoooo Dawg'
+        },
+        cypherParams: CYPHER_PARAMS
+      },
+      expectedCypherQuery
+    )
+  ]);
+});
+
+test('Handle @cypher mutation with input type argument', t => {
+  const graphQLQuery = `mutation someMutation($strArg: String, $strInputArg: strInput) {
+    customWithArguments(strArg: $strArg, strInputArg: $strInputArg )
+  }`,
+    expectedCypherQuery = `CALL apoc.cypher.doIt("RETURN $strInputArg.strArg", {strArg:$strArg, strInputArg:$strInputArg, first:$first, offset:$offset, cypherParams: $cypherParams}) YIELD value
+    WITH apoc.map.values(value, [keys(value)[0]])[0] AS \`string\`
+    RETURN \`string\` `;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        }
+      },
+      expectedCypherQuery,
+      {
+        first: -1,
+        cypherParams: CYPHER_PARAMS,
+        offset: 0,
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        }
+      }
+    ),
+    augmentedSchemaCypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        }
+      },
+      expectedCypherQuery
+    )
+  ]);
+});
+
+test('Handle @cypher query with parameterized input type argument', t => {
+  const graphQLQuery = `query someQuery ($strArg: String, $strInputArg: strInput) {
+    customWithArguments(strArg: $strArg, strInputArg: $strInputArg )
+  }`,
+    expectedCypherQuery = `WITH apoc.cypher.runFirstColumn("RETURN $strInputArg.strArg", {offset:$offset, first:$first, strArg:$strArg, strInputArg:$strInputArg, cypherParams: $cypherParams}, True) AS x UNWIND x AS \`string\` RETURN \`string\`  SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        }
+      },
+      expectedCypherQuery,
+      {
+        first: -1,
+        offset: 0,
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        },
+        cypherParams: CYPHER_PARAMS
+      }
+    ),
+    augmentedSchemaCypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg: 'Hello',
+        strInputArg: {
+          strArg: 'World'
+        }
+      },
+      expectedCypherQuery
+    )
+  ]);
+});
+
+test('Handle @cypher field on root query type with scalar payload, no args', t => {
+  const graphQLQuery = `query {
+    TemporalNode {
+      computedTimestamp
+    }
+  }`,
+    expectedCypherQuery = `MATCH (\`temporalNode\`:\`TemporalNode\` ) RETURN \`temporalNode\` {computedTimestamp: apoc.cypher.runFirstColumn("RETURN toString(datetime())", {this: temporalNode}, false)} AS \`temporalNode\` SKIP $offset`;
+
+  t.plan(1);
+  return Promise.all([
+    augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
+  ]);
+});
+
+test('Handle @cypher field with parameterized value for field of input type argument', t => {
+  const graphQLQuery = `query someQuery(
+    $strArg: String
+  ) {
+    User {
+      name
+      currentUserId(strInputArg: {
+        strArg: $strArg
+      })
+    }
+  }`,
+    expectedCypherQuery = `MATCH (\`user\`:\`User\` ) RETURN \`user\` { .name ,currentUserId: apoc.cypher.runFirstColumn("RETURN $cypherParams.currentUserId AS cypherParamsUserId", {this: user, cypherParams: $cypherParams, strArg: "Neo4j", strInputArg: $1_strInputArg}, false)} AS \`user\` SKIP $offset`;
+
+  t.plan(3);
+  return Promise.all([
+    cypherTestRunner(
+      t,
+      graphQLQuery,
+      {
+        strArg: 'Yo Dawg'
+      },
+      expectedCypherQuery,
+      {
+        '1_strInputArg': {
+          strArg: 'Yo Dawg'
+        },
+        first: -1,
+        offset: 0,
+        cypherParams: CYPHER_PARAMS
+      }
+    ),
     augmentedSchemaCypherTestRunner(t, graphQLQuery, {}, expectedCypherQuery)
   ]);
 });

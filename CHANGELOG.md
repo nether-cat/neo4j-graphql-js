@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.4.2
+
+- [Fix for querying interface type when no fragment is specified](https://github.com/neo4j-graphql/neo4j-graphql-js/pull/210)
+- [Fix for `@cypher` directive input type argument parameters](https://github.com/neo4j-graphql/neo4j-graphql-js/pull/213)
+
+## 2.4.1
+
+- [Fix for `@cypher` directive field parameters](https://github.com/neo4j-graphql/neo4j-graphql-js/pull/207)
+
+## 2.4.0
+
+- [Support for authorization schema directives via graphql-auth-directives](https://www.npmjs.com/package/graphql-auth-directives)
+- [Pass context data to Cypher params](https://github.com/neo4j-graphql/neo4j-graphql-js/issues/187)
+- [Fix for scalar payloads on Cypher directive fields](https://github.com/neo4j-graphql/neo4j-graphql-js/issues/145)
+- [Fix for input type arguments on Cypher directive fields](https://github.com/neo4j-graphql/neo4j-graphql-js/issues/192)
+
 ## 2.3.1
 
 - [Remove functionality to infer addition of neo4j_ignore directive](https://github.com/neo4j-graphql/neo4j-graphql-js/commit/4d3ef38a5756ef14bec1cdbbfb5ecb7b6455d4c6)

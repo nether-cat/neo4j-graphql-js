@@ -1,5 +1,5 @@
 import { print, parse } from 'graphql';
-import { possiblyAddArgument } from './augment';
+import { possiblyAddDirectiveDeclarations } from './auth';
 import { v1 as neo4j } from 'neo4j-driver';
 import _ from 'lodash';
 import filter from 'lodash/filter';
@@ -13,10 +13,10 @@ function parseArg(arg, variableValues) {
       return parseFloat(arg.value.value);
     }
     case 'Variable': {
-      return variableValues[arg.name.value];
+      return variableValues[arg.value.name.value];
     }
     case 'ObjectValue': {
-      return parseArgs(arg.value.fields, {});
+      return parseArgs(arg.value.fields, variableValues);
     }
     case 'ListValue': {
       return _.map(arg.value.values, value =>
@@ -44,15 +44,17 @@ export const parseFieldSdl = sdl => {
 };
 
 export const parseInputFieldsSdl = fields => {
+  let arr = [];
   if (Array.isArray(fields)) {
     fields = fields.join('\n');
-    return fields
-      ? parse(`input Type { ${fields} }`).definitions[0].fields
-      : {};
+    arr = fields ? parse(`type Type { ${fields} }`).definitions[0].fields : [];
+    arr = arr.map(e => ({
+      kind: 'InputValueDefinition',
+      name: e.name,
+      type: e.type
+    }));
   }
-  return fields
-    ? parse(`input Type { ${fields} }`).definitions[0].fields[0]
-    : {};
+  return arr;
 };
 
 export const parseDirectiveSdl = sdl => {
@@ -96,13 +98,14 @@ export function extractSelections(selections, fragments) {
 
 export function extractQueryResult({ records }, returnType) {
   const { variableName } = typeIdentifiers(returnType);
-
-  let result = isArrayType(returnType)
-    ? records.map(record => record.get(variableName))
-    : records.length
-    ? records[0].get(variableName)
-    : null;
-
+  let result = null;
+  if (isArrayType(returnType)) {
+    result = records.map(record => record.get(variableName));
+  } else if (records.length) {
+    // could be object or scalar
+    result = records[0].get(variableName);
+    result = Array.isArray(result) ? result[0] : result;
+  }
   // handle Integer fields
   result = _.cloneDeepWith(result, field => {
     if (neo4j.isInt(field)) {
@@ -110,7 +113,6 @@ export function extractQueryResult({ records }, returnType) {
       return field.inSafeRange() ? field.toNumber() : field.toString();
     }
   });
-
   return result;
 }
 
@@ -137,23 +139,41 @@ function getDefaultArguments(fieldName, schemaType) {
 export function cypherDirectiveArgs(
   variable,
   headSelection,
+  cypherParams,
   schemaType,
-  resolveInfo
+  resolveInfo,
+  paramIndex
 ) {
+  // Get any default arguments or an empty object
   const defaultArgs = getDefaultArguments(headSelection.name.value, schemaType);
+  // Set the $this parameter by default
+  let args = [`this: ${variable}`];
+  // If cypherParams are provided, add the parameter
+  if (cypherParams) args.push(`cypherParams: $cypherParams`);
+  // Parse field argument values
   const queryArgs = parseArgs(
     headSelection.arguments,
     resolveInfo.variableValues
   );
-
-  let args = JSON.stringify(Object.assign(defaultArgs, queryArgs)).replace(
-    /\"([^(\")"]+)\":/g,
-    ' $1: '
-  );
-
-  return args === '{}'
-    ? `{this: ${variable}${args.substring(1)}`
-    : `{this: ${variable},${args.substring(1)}`;
+  // Add arguments that have default values, if no value is provided
+  Object.keys(defaultArgs).forEach(e => {
+    // Use only if default value exists and no value has been provided
+    if (defaultArgs[e] !== undefined && queryArgs[e] === undefined) {
+      // Values are inlined
+      const inlineDefaultValue = JSON.stringify(defaultArgs[e]);
+      args.push(`${e}: ${inlineDefaultValue}`);
+    }
+  });
+  // Add arguments that have provided values
+  Object.keys(queryArgs).forEach(e => {
+    if (queryArgs[e] !== undefined) {
+      // Use only if value exists
+      args.push(`${e}: $${paramIndex}_${e}`);
+    }
+  });
+  // Return the comma separated join of all param
+  // strings, adding a comma to match current test formats
+  return args.join(', ');
 }
 
 export function _isNamedMutation(name) {
@@ -188,7 +208,7 @@ export function isGraphqlScalarType(type) {
 }
 
 export function isArrayType(type) {
-  return type.toString().startsWith('[');
+  return type ? type.toString().startsWith('[') : false;
 }
 
 export const isRelationTypeDirectedField = fieldName => {
@@ -321,7 +341,7 @@ export function innerFilterParams(
     : [];
 }
 
-export function paramsToString(params) {
+export function paramsToString(params, cypherParams) {
   if (params.length > 0) {
     const strings = _.map(params, param => {
       return `${param.key}:${param.paramKey ? `$${param.paramKey}.` : '$'}${
@@ -330,7 +350,9 @@ export function paramsToString(params) {
           : `${param.value.index}_${param.key}`
       }`;
     });
-    return `{${strings.join(', ')}}`;
+    return `{${strings.join(', ')}${
+      cypherParams ? `, cypherParams: $cypherParams}` : '}'
+    }`;
   }
   return '';
 }
@@ -499,13 +521,19 @@ export const buildCypherParameters = ({
 // TODO refactor to handle Query/Mutation type schema directives
 const directiveWithArgs = (directiveName, args) => (schemaType, fieldName) => {
   function fieldDirective(schemaType, fieldName, directiveName) {
-    return schemaType
-      .getFields()
-      [fieldName].astNode.directives.find(e => e.name.value === directiveName);
+    return !isGraphqlScalarType(schemaType)
+      ? schemaType
+          .getFields()
+          [fieldName].astNode.directives.find(
+            e => e.name.value === directiveName
+          )
+      : {};
   }
 
   function directiveArgument(directive, name) {
-    return directive.arguments.find(e => e.name.value === name).value.value;
+    return directive && directive.arguments
+      ? directive.arguments.find(e => e.name.value === name).value.value
+      : [];
   }
 
   const directive = fieldDirective(schemaType, fieldName, directiveName);
@@ -566,7 +594,7 @@ export const getRelationName = relationDirective => {
   }
 };
 
-export const addDirectiveDeclarations = typeMap => {
+export const addDirectiveDeclarations = (typeMap, config) => {
   // overwrites any provided directive declarations for system directive names
   typeMap['cypher'] = parse(
     `directive @cypher(statement: String) on FIELD_DEFINITION`
@@ -574,15 +602,17 @@ export const addDirectiveDeclarations = typeMap => {
   typeMap['relation'] = parse(
     `directive @relation(name: String, direction: _RelationDirections, from: String, to: String) on FIELD_DEFINITION | OBJECT`
   ).definitions[0];
+  // TODO should we change these system directives to having a '_Neo4j' prefix
   typeMap['MutationMeta'] = parse(
     `directive @MutationMeta(relationship: String, from: String, to: String) on FIELD_DEFINITION`
-  ).definitions[0];
-  typeMap['_RelationDirections'] = parse(
-    `enum _RelationDirections { IN OUT }`
   ).definitions[0];
   typeMap['neo4j_ignore'] = parse(
     `directive @neo4j_ignore on FIELD_DEFINITION`
   ).definitions[0];
+  typeMap['_RelationDirections'] = parse(
+    `enum _RelationDirections { IN OUT }`
+  ).definitions[0];
+  typeMap = possiblyAddDirectiveDeclarations(typeMap, config);
   return typeMap;
 };
 
@@ -803,28 +833,20 @@ export const initializeMutationParams = ({
 export const getOuterSkipLimit = first =>
   `SKIP $offset${first > -1 ? ' LIMIT $first' : ''}`;
 
-export const getQuerySelections = resolveInfo => {
+export const getPayloadSelections = resolveInfo => {
   const filteredFieldNodes = filter(
     resolveInfo.fieldNodes,
     n => n.name.value === resolveInfo.fieldName
   );
-  // FIXME: how to handle multiple fieldNode matches
-  return extractSelections(
-    filteredFieldNodes[0].selectionSet.selections,
-    resolveInfo.fragments
-  );
-};
-
-export const getMutationSelections = resolveInfo => {
-  let selections = getQuerySelections(resolveInfo);
-  if (selections.length === 0) {
-    // FIXME: why aren't the selections found in the filteredFieldNode?
-    selections = extractSelections(
-      resolveInfo.operation.selectionSet.selections,
+  if (filteredFieldNodes[0] && filteredFieldNodes[0].selectionSet) {
+    // FIXME: how to handle multiple fieldNode matches
+    const x = extractSelections(
+      filteredFieldNodes[0].selectionSet.selections,
       resolveInfo.fragments
     );
+    return x;
   }
-  return selections;
+  return [];
 };
 
 export const filterNullParams = ({ offset, first, otherParams }) => {
@@ -934,6 +956,9 @@ export const getTemporalCypherConstructor = fieldAst => {
 export const getTemporalArguments = args => {
   return args
     ? args.reduce((acc, t) => {
+        if (!t) {
+          return acc;
+        }
         const fieldType = getNamedType(t.type).name.value;
         if (isTemporalInputType(fieldType)) acc.push(t);
         return acc;
@@ -1086,7 +1111,7 @@ export const getCustomFieldResolver = (astNode, field, resolvers) => {
 };
 
 export const removeIgnoredFields = (schemaType, selections) => {
-  if (schemaType && selections && selections.length) {
+  if (!isGraphqlScalarType(schemaType) && selections && selections.length) {
     let schemaTypeField = '';
     selections = selections.filter(e => {
       if (e.kind === 'Field') {

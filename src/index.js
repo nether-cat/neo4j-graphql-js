@@ -5,8 +5,7 @@ import {
   extractTypeMapFromTypeDefs,
   addDirectiveDeclarations,
   printTypeMap,
-  getQuerySelections,
-  getMutationSelections
+  getPayloadSelections
 } from './utils';
 import {
   extractTypeMapFromSchema,
@@ -67,10 +66,11 @@ export function cypherQuery(
 ) {
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
-  const selections = getQuerySelections(resolveInfo);
+  const selections = getPayloadSelections(resolveInfo);
   const accessParams = getAccessControlParams(context, resolveInfo);
   return translateQuery({
     resolveInfo,
+    context,
     schemaType,
     selections,
     variableName,
@@ -91,10 +91,11 @@ export function cypherMutation(
 ) {
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
-  const selections = getMutationSelections(resolveInfo);
+  const selections = getPayloadSelections(resolveInfo);
   const accessParams = getAccessControlParams(context, resolveInfo);
   return translateMutation({
     resolveInfo,
+    context,
     schemaType,
     selections,
     variableName,
@@ -128,7 +129,7 @@ export const makeAugmentedSchema = ({
   allowUndefinedInResolve = false,
   resolverValidationOptions = {},
   directiveResolvers = null,
-  schemaDirectives = null,
+  schemaDirectives = {},
   parseOptions = {},
   inheritResolversFromInterfaces = false,
   config = {
@@ -159,7 +160,7 @@ export const makeAugmentedSchema = ({
 export const augmentTypeDefs = (typeDefs, config) => {
   let typeMap = extractTypeMapFromTypeDefs(typeDefs);
   // overwrites any provided declarations of system directives
-  typeMap = addDirectiveDeclarations(typeMap);
+  typeMap = addDirectiveDeclarations(typeMap, config);
   // adds managed types; tepmoral, spatial, etc.
   typeMap = addTemporalTypes(typeMap, config);
   return printTypeMap(typeMap);
