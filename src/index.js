@@ -66,8 +66,14 @@ export function cypherQuery(
 ) {
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
+<<<<<<< HEAD
   const selections = getPayloadSelections(resolveInfo);
   const accessParams = getAccessControlParams(context, resolveInfo);
+||||||| merged common ancestors
+  const selections = getQuerySelections(resolveInfo);
+=======
+  const selections = getPayloadSelections(resolveInfo);
+>>>>>>> upstream/master
   return translateQuery({
     resolveInfo,
     context,
@@ -91,8 +97,14 @@ export function cypherMutation(
 ) {
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
+<<<<<<< HEAD
   const selections = getPayloadSelections(resolveInfo);
   const accessParams = getAccessControlParams(context, resolveInfo);
+||||||| merged common ancestors
+  const selections = getMutationSelections(resolveInfo);
+=======
+  const selections = getPayloadSelections(resolveInfo);
+>>>>>>> upstream/master
   return translateMutation({
     resolveInfo,
     context,
