@@ -30,61 +30,38 @@ export const checkRequestError = context => {
 };
 
 /*
- *  Call Access Control List factories
+ *  Call Custom Context Parameter factories
  *  injected into context object
  *  based on the type of Query/Mutation.
  */
-export const getAccessControlParams = (context, resolveInfo) => {
-  if (context == null || context.AccessControl == undefined) {
-    return { matchStatements: '', mergeHeader: '', whereStatements: [] };
+export const getCustomContextParams = (context, resolveInfo) => {
+  if (context == null || context.CustomContextParams == undefined) {
+    return {
+      matchStatements: [],
+      mainHeader: '',
+      optionalMatchStatements: [],
+      whereStatements: [],
+      returnValues: ''
+    };
   } else {
     if (isMutation(resolveInfo)) {
       if (getMutationCypherDirective(resolveInfo)) {
         // Custom cypher directives can incorporate their own custom ACL
         return false;
-      } else if (isCreateMutation(resolveInfo)) {
-        // TODO: validate CreateMutation aclFactory output for use in nodeCreate
-        return context.AccessControl.createMutation.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.createMutation.aclFactory(
-              context,
-              resolveInfo
-            );
-      } else if (isUpdateMutation(resolveInfo)) {
-        // TODO: validate updateMutation aclFactory output for use in nodeUpdate
-        return context.AccessControl.updateMutation.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.updateMutation.aclFactory(
-              context,
-              resolveInfo
-            );
-      } else if (isDeleteMutation(resolveInfo)) {
-        // TODO: validate deleteMutation aclFactory output for use in nodeDelete
-        return context.AccessControl.deleteMutation.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.deleteMutation.aclFactory(
-              context,
-              resolveInfo
-            );
-      } else if (isAddMutation(resolveInfo)) {
-        // TODO: validate addRelationship aclFactory output for use in relationshipCreate
-        return context.AccessControl.addRelationship.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.addRelationship.aclFactory(
-              context,
-              resolveInfo
-            );
-      } else if (isRemoveMutation(resolveInfo)) {
-        // TODO: validate removeRelationship aclFactory output for use in relationshipDelete
-        return context.AccessControl.removeRelationship.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.removeRelationship.aclFactory(
-              context,
-              resolveInfo
-            );
       } else {
-        // If unknown type of mutation, can't incorporate the ACL
-        return false;
+        // TODO: validate parameterGenerator output for use
+        return context.CustomContextParams.parameterGenerator == undefined
+          ? {
+              matchStatements: [],
+              mainHeader: '',
+              optionalMatchStatements: [],
+              whereStatements: [],
+              returnValues: ''
+            }
+          : context.CustomContextParams.parameterGenerator(
+              context,
+              resolveInfo
+            );
       }
     } else {
       if (getQueryCypherDirective(resolveInfo)) {
@@ -92,9 +69,18 @@ export const getAccessControlParams = (context, resolveInfo) => {
         return false;
       } else {
         // TODO: validate nodeQuery aclFactory output for use in nodeQuery
-        return context.AccessControl.nodeQuery.aclFactory == undefined
-          ? { matchStatements: '', mergeHeader: '', whereStatements: [] }
-          : context.AccessControl.nodeQuery.aclFactory(context, resolveInfo);
+        return context.CustomContextParams.parameterGenerator == undefined
+          ? {
+              matchStatements: [],
+              mainHeader: '',
+              optionalMatchStatements: [],
+              whereStatements: [],
+              returnValues: ''
+            }
+          : context.CustomContextParams.parameterGenerator(
+              context,
+              resolveInfo
+            );
       }
     }
   }

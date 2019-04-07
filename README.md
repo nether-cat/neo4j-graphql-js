@@ -81,41 +81,36 @@ const resolvers = {
 };
 ```
 
-## Access Control
+## Custom Context Parameters
 
-### Access Control Basics
+### Custom Context Parameter Basics
 
-GraphQL recommends implementing authorization/access control through the business logic layer. To accomplish this using `neo4j-graphql.js`, you can implement fine-grained access control within auto-generated queries and mutations by defining and passing generator functions in the `context` object under the `context.AccessControl` property. The structure of this property is as follows:
+GraphQL recommends implementing authorization/access control through the business logic layer. To accomplish this using `neo4j-graphql.js`, you can implement fine-grained access control within auto-generated queries and mutations by defining and passing a generator functions in the `context` object under the `context.CustomContextParameters` property. The structure of this property is as follows:
 
 ```javascript
-import { typeIdentifiers, safeVar } from 'neo4j-graphql-js/dist/utils'
+import { typeIdentifiers, safeVar } from 'neo4j-graphql-js/dist/utils';
 
-context.AccessControl = {
-  nodeQuery: {
-    aclFactory: (context, resolveInfo) => {
-      const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
-      const safeVariableName = safeVar(variableName);
-      return {
-        matchStatements: ['MATCH (u:User {id: ${context.user.userID})'],
-        mainHeader: '',
-        whereStatements: [`(u)-[:CAN_READ]->(${safeVariableName})`]
-      };
-    },
-    // Whitelist/Blacklist not yet implemented.
-    Whitelist: [''],
-    Blacklist: ['']
+context.CustomContextParameters = {
+  parameterGenerator: (context, resolveInfo) => {
+    const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
+    const safeVariableName = safeVar(variableName);
+    return {
+      matchStatements: ['MATCH (u:User {id: ${context.user.userID})'],
+      mainHeader: '',
+      optionalMatchStatements: [],
+      whereStatements: [`(u)-[:CAN_READ]->(${safeVariableName})`],
+      returnValues: ''
+    };
   },
-  createMutation: { ... },
-  updateMutation: { ... },
-  deleteMutation: { ... },
-  addRelationship: { ... },
-  removeRelationship: { ... }
+  // Whitelist/Blacklist not yet implemented.
+  Whitelist: [''],
+  Blacklist: ['']
 };
 ```
 
 ### Example (as envisioned)
 
-Without defining any ACL function, the following GraphQL query:
+Without defining any Parameter Generator function, the following GraphQL query:
 
 ```
 {
@@ -140,7 +135,7 @@ AS movie
 SKIP 0
 ```
 
-With the ACL function defined above in the Access Control Basics subsection, it is translated into:
+With the Parameter Generator function defined above in the Custom Context Parameter Basics subsection, it is translated into:
 
 ```
 MATCH (u:User {id: YOURUSERID)
@@ -151,14 +146,16 @@ AS movie
 SKIP 0
 ```
 
-Alternatively, if the ACL function had been defined as follows:
+Alternatively, if the Parameter Generator function had been defined as follows:
 
 ```javascript
-aclFactory: (context, resolveInfo) => {
+parameterGenerator: (context, resolveInfo) => {
   return {
     matchStatements: [],
     mainHeader: `(u:User {id: ${context.user.userID})-[:CAN_READ]->`,
-    whereStatements: []
+    optionalMatchStatements: [],
+    whereStatements: [],
+    returnValues: ''
   };
 };
 ```
