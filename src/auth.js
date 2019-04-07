@@ -41,7 +41,7 @@ export const getCustomContextParams = (context, resolveInfo) => {
       mainHeader: '',
       optionalMatchStatements: [],
       whereStatements: [],
-      returnValues: ''
+      returnResults: ''
     };
   } else {
     if (isMutation(resolveInfo)) {
@@ -56,7 +56,7 @@ export const getCustomContextParams = (context, resolveInfo) => {
               mainHeader: '',
               optionalMatchStatements: [],
               whereStatements: [],
-              returnValues: ''
+              returnResults: ''
             }
           : context.CustomContextParams.parameterGenerator(
               context,
@@ -75,7 +75,7 @@ export const getCustomContextParams = (context, resolveInfo) => {
               mainHeader: '',
               optionalMatchStatements: [],
               whereStatements: [],
-              returnValues: ''
+              returnResults: ''
             }
           : context.CustomContextParams.parameterGenerator(
               context,
