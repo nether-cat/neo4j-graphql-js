@@ -1,11 +1,7 @@
 import {
-  isAddMutation,
-  isCreateMutation,
-  isUpdateMutation,
-  isRemoveMutation,
-  isDeleteMutation,
   getQueryCypherDirective,
-  getMutationCypherDirective
+  getMutationCypherDirective,
+  isMutation
 } from './utils';
 // Initial support for checking auth
 import { parse } from 'graphql';
@@ -34,55 +30,23 @@ export const checkRequestError = context => {
  *  injected into context object
  *  based on the type of Query/Mutation.
  */
-export const getCustomContextParams = (context, resolveInfo) => {
-  if (context == null || context.CustomContextParams == undefined) {
-    return {
-      matchStatements: [],
-      mainHeader: '',
-      optionalMatchStatements: [],
-      whereStatements: [],
-      returnResults: ''
-    };
+export const getInjectedParams = (context, resolveInfo) => {
+  let defaultParams = {
+    precedingStatements: [],
+    subjectPatternPrefix: '',
+    optionalMatchStatements: [],
+    whereClauses: [],
+    returnClauses: ''
+  };
+  if (
+    (isMutation(resolveInfo) && getMutationCypherDirective(resolveInfo)) ||
+    (!isMutation() && getQueryCypherDirective(resolveInfo))
+  ) {
+    return false;
+  } else if (!context || !context.inject || !context.inject.parameterFactory) {
+    return defaultParams;
   } else {
-    if (isMutation(resolveInfo)) {
-      if (getMutationCypherDirective(resolveInfo)) {
-        // Custom cypher directives can incorporate their own custom ACL
-        return false;
-      } else {
-        // TODO: validate parameterGenerator output for use
-        return context.CustomContextParams.parameterGenerator == undefined
-          ? {
-              matchStatements: [],
-              mainHeader: '',
-              optionalMatchStatements: [],
-              whereStatements: [],
-              returnResults: ''
-            }
-          : context.CustomContextParams.parameterGenerator(
-              context,
-              resolveInfo
-            );
-      }
-    } else {
-      if (getQueryCypherDirective(resolveInfo)) {
-        // Custom cypher directives can incorporate their own custom ACL
-        return false;
-      } else {
-        // TODO: validate nodeQuery aclFactory output for use in nodeQuery
-        return context.CustomContextParams.parameterGenerator == undefined
-          ? {
-              matchStatements: [],
-              mainHeader: '',
-              optionalMatchStatements: [],
-              whereStatements: [],
-              returnResults: ''
-            }
-          : context.CustomContextParams.parameterGenerator(
-              context,
-              resolveInfo
-            );
-      }
-    }
+    return context.inject.parameterFactory(context, resolveInfo);
   }
 };
 

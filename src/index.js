@@ -14,7 +14,7 @@ import {
   makeAugmentedExecutableSchema,
   addTemporalTypes
 } from './augment';
-import { checkRequestError, getCustomContextParams } from './auth';
+import { checkRequestError, getInjectedParams } from './auth';
 import { translateMutation, translateQuery } from './translate';
 
 export async function neo4jgraphql(
@@ -67,7 +67,7 @@ export function cypherQuery(
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
   const selections = getPayloadSelections(resolveInfo);
-  const customContextParams = getCustomContextParams(context, resolveInfo);
+  const injectedParams = getInjectedParams(context, resolveInfo);
   return translateQuery({
     resolveInfo,
     context,
@@ -80,7 +80,7 @@ export function cypherQuery(
     _id,
     orderBy,
     otherParams,
-    customContextParams
+    injectedParams
   });
 }
 
@@ -92,7 +92,7 @@ export function cypherMutation(
   const { typeName, variableName } = typeIdentifiers(resolveInfo.returnType);
   const schemaType = resolveInfo.schema.getType(typeName);
   const selections = getPayloadSelections(resolveInfo);
-  const customContextParams = getCustomContextParams(context, resolveInfo);
+  const injectedParams = getInjectedParams(context, resolveInfo);
   return translateMutation({
     resolveInfo,
     context,
@@ -103,7 +103,7 @@ export function cypherMutation(
     first,
     offset,
     otherParams,
-    customContextParams
+    injectedParams
   });
 }
 
