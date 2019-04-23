@@ -30,7 +30,8 @@ import {
   splitSelectionParameters,
   getTemporalArguments,
   temporalPredicateClauses,
-  isTemporalType
+  isTemporalType,
+  isGraphqlScalarType
 } from './utils';
 import { getNamedType } from 'graphql';
 import { buildCypherSelection } from './selections';
@@ -38,6 +39,8 @@ import _ from 'lodash';
 
 export const customCypherField = ({
   customCypher,
+  cypherParams,
+  paramIndex,
   schemaTypeRelation,
   initial,
   fieldName,
@@ -57,15 +60,23 @@ export const customCypherField = ({
   }
   const fieldIsList = !!fieldType.ofType;
   // similar: [ x IN apoc.cypher.runFirstColumn("WITH {this} AS this MATCH (this)--(:Genre)--(o:Movie) RETURN o", {this: movie}, true) |x {.title}][1..2])
+
+  // For @cypher fields with object payload types, customCypherField is
+  // called after the recursive call to compute a subSelection. But recurse()
+  // increments paramIndex. So here we need to decrement it in order to map
+  // appropriately to the indexed keys produced in getFilterParams()
+  const cypherFieldParamsIndex = paramIndex - 1;
   return {
     initial: `${initial}${fieldName}: ${
       fieldIsList ? '' : 'head('
-    }[ ${nestedVariable} IN apoc.cypher.runFirstColumn("${customCypher}", ${cypherDirectiveArgs(
+    }[ ${nestedVariable} IN apoc.cypher.runFirstColumn("${customCypher}", {${cypherDirectiveArgs(
       variableName,
       headSelection,
+      cypherParams,
       schemaType,
-      resolveInfo
-    )}, true) | ${nestedVariable} {${subSelection[0]}}]${
+      resolveInfo,
+      cypherFieldParamsIndex
+    )}}, true) | ${nestedVariable} {${subSelection[0]}}]${
       fieldIsList ? '' : ')'
     }${skipLimit} ${commaIfTail}`,
     ...tailParams
@@ -368,7 +379,7 @@ export const temporalField = ({
   // containing this temporal field was a node
   let variableName = parentVariableName;
   let fieldIsArray = isArrayType(parentFieldType);
-  if (!isNodeType(parentSchemaType.astNode)) {
+  if (parentSchemaType && !isNodeType(parentSchemaType.astNode)) {
     // initial assumption wrong, build appropriate relationship variable
     if (
       isRootSelection({
@@ -474,6 +485,7 @@ export const temporalType = ({
 // Query API root operation branch
 export const translateQuery = ({
   resolveInfo,
+  context,
   selections,
   variableName,
   typeName,
@@ -494,13 +506,15 @@ export const translateQuery = ({
   const queryArgs = getQueryArguments(resolveInfo);
   const temporalArgs = getTemporalArguments(queryArgs);
   const queryTypeCypherDirective = getQueryCypherDirective(resolveInfo);
+  const cypherParams = getCypherParams(context);
   const queryParams = paramsToString(
     innerFilterParams(
       filterParams,
       temporalArgs,
       null,
       queryTypeCypherDirective ? true : false
-    )
+    ),
+    cypherParams
   );
   const safeVariableName = safeVar(variableName);
   const temporalClauses = temporalPredicateClauses(
@@ -510,9 +524,11 @@ export const translateQuery = ({
   );
   const outerSkipLimit = getOuterSkipLimit(first);
   const orderByValue = computeOrderBy(resolveInfo, selections);
+
   if (queryTypeCypherDirective) {
     return customQuery({
       resolveInfo,
+      cypherParams,
       schemaType,
       argString: queryParams,
       selections,
@@ -526,6 +542,7 @@ export const translateQuery = ({
   } else {
     return nodeQuery({
       resolveInfo,
+      cypherParams,
       schemaType,
       argString: queryParams,
       selections,
@@ -544,9 +561,19 @@ export const translateQuery = ({
   }
 };
 
+const getCypherParams = context => {
+  return context &&
+    context.cypherParams &&
+    context.cypherParams instanceof Object &&
+    Object.keys(context.cypherParams).length > 0
+    ? context.cypherParams
+    : undefined;
+};
+
 // Custom read operation
 const customQuery = ({
   resolveInfo,
+  cypherParams,
   schemaType,
   argString,
   selections,
@@ -560,6 +587,7 @@ const customQuery = ({
   const safeVariableName = safeVar(variableName);
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
+    cypherParams,
     selections,
     variableName,
     schemaType,
@@ -567,20 +595,32 @@ const customQuery = ({
     paramIndex: 1
   });
   const params = { ...nonNullParams, ...subParams };
+  if (cypherParams) {
+    params['cypherParams'] = cypherParams;
+  }
   // QueryType with a @cypher directive
   const cypherQueryArg = queryTypeCypherDirective.arguments.find(x => {
     return x.name.value === 'statement';
   });
+  const isScalarType = isGraphqlScalarType(schemaType);
+  const temporalType = isTemporalType(schemaType.name);
   const query = `WITH apoc.cypher.runFirstColumn("${
     cypherQueryArg.value.value
-  }", ${argString || 'null'}, True) AS x UNWIND x AS ${safeVariableName}
-    RETURN ${safeVariableName} {${subQuery}} AS ${safeVariableName}${orderByValue} ${outerSkipLimit}`;
+  }", ${argString ||
+    'null'}, True) AS x UNWIND x AS ${safeVariableName} RETURN ${safeVariableName} ${
+    // Don't add subQuery for scalar type payloads
+    // FIXME: fix subselection translation for temporal type payload
+    !temporalType && !isScalarType
+      ? `{${subQuery}} AS ${safeVariableName}${orderByValue}`
+      : ''
+  } ${outerSkipLimit}`;
   return [query, params];
 };
 
 // Generated API
 const nodeQuery = ({
   resolveInfo,
+  cypherParams,
   schemaType,
   selections,
   variableName,
@@ -599,6 +639,7 @@ const nodeQuery = ({
   const safeLabelName = safeLabel(typeName);
   const [subQuery, subParams] = buildCypherSelection({
     initial: '',
+    cypherParams,
     selections,
     variableName,
     schemaType,
@@ -606,6 +647,9 @@ const nodeQuery = ({
     paramIndex: 1
   });
   const params = { ...nonNullParams, ...subParams };
+  if (cypherParams) {
+    params['cypherParams'] = cypherParams;
+  }
   const arrayParams = _.pickBy(filterParams, Array.isArray);
   const args = innerFilterParams(filterParams, temporalArgs);
 
@@ -651,6 +695,7 @@ const nodeQuery = ({
 // Mutation API root operation branch
 export const translateMutation = ({
   resolveInfo,
+  context,
   schemaType,
   selections,
   variableName,
@@ -679,6 +724,7 @@ export const translateMutation = ({
   if (mutationTypeCypherDirective) {
     return customMutation({
       ...mutationInfo,
+      context,
       mutationTypeCypherDirective,
       variableName,
       orderByValue,
@@ -727,6 +773,7 @@ export const translateMutation = ({
 // Custom write operation
 const customMutation = ({
   params,
+  context,
   mutationTypeCypherDirective,
   selections,
   variableName,
@@ -735,6 +782,7 @@ const customMutation = ({
   orderByValue,
   outerSkipLimit
 }) => {
+  const cypherParams = getCypherParams(context);
   const safeVariableName = safeVar(variableName);
   // FIXME: support IN for multiple values -> WHERE
   const argString = paramsToString(
@@ -743,7 +791,8 @@ const customMutation = ({
       null,
       null,
       true
-    )
+    ),
+    cypherParams
   );
   const cypherQueryArg = mutationTypeCypherDirective.arguments.find(x => {
     return x.name.value === 'statement';
@@ -756,12 +805,21 @@ const customMutation = ({
     resolveInfo,
     paramIndex: 1
   });
+  const isScalarType = isGraphqlScalarType(schemaType);
+  const temporalType = isTemporalType(schemaType.name);
   params = { ...params, ...subParams };
+  if (cypherParams) {
+    params['cypherParams'] = cypherParams;
+  }
   const query = `CALL apoc.cypher.doIt("${
     cypherQueryArg.value.value
   }", ${argString}) YIELD value
     WITH apoc.map.values(value, [keys(value)[0]])[0] AS ${safeVariableName}
-    RETURN ${safeVariableName} {${subQuery}} AS ${safeVariableName}${orderByValue} ${outerSkipLimit}`;
+    RETURN ${safeVariableName} ${
+    !temporalType && !isScalarType
+      ? `{${subQuery}} AS ${safeVariableName}${orderByValue} ${outerSkipLimit}`
+      : ''
+  }`;
   return [query, params];
 };
 

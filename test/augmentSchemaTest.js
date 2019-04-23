@@ -4,7 +4,6 @@ import { printSchema } from 'graphql';
 
 test.cb('Test augmented schema', t => {
   let schema = augmentedSchema();
-
   let expectedSchema = `directive @cypher(statement: String) on FIELD_DEFINITION
 
 directive @relation(name: String, direction: _RelationDirections, from: String, to: String) on FIELD_DEFINITION | OBJECT
@@ -12,6 +11,12 @@ directive @relation(name: String, direction: _RelationDirections, from: String, 
 directive @MutationMeta(relationship: String, from: String, to: String) on FIELD_DEFINITION
 
 directive @neo4j_ignore on FIELD_DEFINITION
+
+directive @isAuthenticated on OBJECT | FIELD_DEFINITION
+
+directive @hasRole(roles: [Role]) on OBJECT | FIELD_DEFINITION
+
+directive @hasScope(scopes: [String]) on OBJECT | FIELD_DEFINITION
 
 input _ActorInput {
   userId: ID!
@@ -54,6 +59,7 @@ type _AddMovieGenresPayload {
 type _AddMovieRatingsPayload {
   from: User
   to: Movie
+  currentUserId: String
   rating: Int
   ratings: [Int]
   time: _Neo4jTime
@@ -69,9 +75,15 @@ type _AddTemporalNodeTemporalNodesPayload {
   to: TemporalNode
 }
 
+type _AddUserFavoritesPayload {
+  from: User
+  to: Movie
+}
+
 type _AddUserFriendsPayload {
   from: User
   to: User
+  currentUserId: String
   since: Int
   time: _Neo4jTime
   date: _Neo4jDate
@@ -84,6 +96,7 @@ type _AddUserFriendsPayload {
 type _AddUserRatedPayload {
   from: User
   to: Movie
+  currentUserId: String
   rating: Int
   ratings: [Int]
   time: _Neo4jTime
@@ -101,6 +114,17 @@ input _BookInput {
 enum _BookOrdering {
   genre_asc
   genre_desc
+  _id_asc
+  _id_desc
+}
+
+input _currentUserIdInput {
+  userId: String!
+}
+
+enum _currentUserIdOrdering {
+  userId_asc
+  userId_desc
   _id_asc
   _id_desc
 }
@@ -134,6 +158,7 @@ enum _MovieOrdering {
 }
 
 type _MovieRatings {
+  currentUserId(strArg: String): String
   rating: Int
   ratings: [Int]
   time: _Neo4jTime
@@ -306,6 +331,11 @@ type _RemoveTemporalNodeTemporalNodesPayload {
   to: TemporalNode
 }
 
+type _RemoveUserFavoritesPayload {
+  from: User
+  to: Movie
+}
+
 type _RemoveUserFriendsPayload {
   from: User
   to: User
@@ -344,11 +374,14 @@ enum _TemporalNodeOrdering {
   localtime_desc
   localdatetime_asc
   localdatetime_desc
+  computedTimestamp_asc
+  computedTimestamp_desc
   _id_asc
   _id_desc
 }
 
 type _UserFriends {
+  currentUserId: String
   since: Int
   time: _Neo4jTime
   date: _Neo4jDate
@@ -373,11 +406,14 @@ enum _UserOrdering {
   userId_desc
   name_asc
   name_desc
+  currentUserId_asc
+  currentUserId_desc
   _id_asc
   _id_desc
 }
 
 type _UserRated {
+  currentUserId(strArg: String): String
   rating: Int
   ratings: [Int]
   time: _Neo4jTime
@@ -407,12 +443,18 @@ enum BookGenre {
   Math
 }
 
+type currentUserId {
+  userId: String
+  _id: String
+}
+
 scalar Date
 
 scalar DateTime
 
 type FriendOf {
   from: User
+  currentUserId: String
   since: Int
   time: _Neo4jTime
   date: _Neo4jDate
@@ -443,7 +485,7 @@ type Movie {
   movieId: ID!
   title: String
   year: Int
-  released: _Neo4jDateTime
+  released: _Neo4jDateTime!
   plot: String
   poster: String
   imdbRating: Float
@@ -463,10 +505,16 @@ type Movie {
   imdbRatings: [Float]
   releases: [_Neo4jDateTime]
   customField: String
+  currentUserId(strArg: String): String
 }
 
 type Mutation {
-  CreateMovie(movieId: ID, title: String, year: Int, released: _Neo4jDateTimeInput, plot: String, poster: String, imdbRating: Float, avgStars: Float, years: [Int], titles: [String], imdbRatings: [Float], releases: [_Neo4jDateTimeInput]): Movie
+  currentUserId: String
+  computedObjectWithCypherParams: currentUserId
+  computedTemporal: _Neo4jDateTime
+  computedStringList: [String]
+  customWithArguments(strArg: String, strInputArg: strInput): String
+  CreateMovie(movieId: ID, title: String, year: Int, released: _Neo4jDateTimeInput!, plot: String, poster: String, imdbRating: Float, avgStars: Float, years: [Int], titles: [String], imdbRatings: [Float], releases: [_Neo4jDateTimeInput]): Movie
   UpdateMovie(movieId: ID!, title: String, year: Int, released: _Neo4jDateTimeInput, plot: String, poster: String, imdbRating: Float, avgStars: Float, years: [Int], titles: [String], imdbRatings: [Float], releases: [_Neo4jDateTimeInput]): Movie
   DeleteMovie(movieId: ID!): Movie
   AddMovieGenres(from: _MovieInput!, to: _GenreInput!): _AddMovieGenresPayload
@@ -495,8 +543,12 @@ type Mutation {
   RemoveUserRated(from: _UserInput!, to: _MovieInput!): _RemoveUserRatedPayload
   AddUserFriends(from: _UserInput!, to: _UserInput!, data: _FriendOfInput!): _AddUserFriendsPayload
   RemoveUserFriends(from: _UserInput!, to: _UserInput!): _RemoveUserFriendsPayload
+  AddUserFavorites(from: _UserInput!, to: _MovieInput!): _AddUserFavoritesPayload
+  RemoveUserFavorites(from: _UserInput!, to: _MovieInput!): _RemoveUserFavoritesPayload
   CreateBook(genre: BookGenre): Book
   DeleteBook(genre: BookGenre!): Book
+  CreatecurrentUserId(userId: String): currentUserId
+  DeletecurrentUserId(userId: String!): currentUserId
   CreateTemporalNode(datetime: _Neo4jDateTimeInput, name: String, time: _Neo4jTimeInput, date: _Neo4jDateInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput, localdatetimes: [_Neo4jLocalDateTimeInput]): TemporalNode
   UpdateTemporalNode(datetime: _Neo4jDateTimeInput!, name: String, time: _Neo4jTimeInput, date: _Neo4jDateInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput, localdatetimes: [_Neo4jLocalDateTimeInput]): TemporalNode
   DeleteTemporalNode(datetime: _Neo4jDateTimeInput!): TemporalNode
@@ -517,16 +569,26 @@ type Query {
   MovieBy_Id(_id: String!): Movie
   GenresBySubstring(substring: String, first: Int, offset: Int, orderBy: [_GenreOrdering]): [Genre]
   State(first: Int, offset: Int, orderBy: [_StateOrdering]): [State]
+  User(userId: ID, name: String, _id: String, first: Int, offset: Int, orderBy: [_UserOrdering]): [User]
   Books(first: Int, offset: Int, orderBy: [_BookOrdering]): [Book]
+  currentUserId: String
+  computedBoolean: Boolean
+  computedFloat: Float
+  computedInt: Int
+  computedIntList: [Int]
+  computedStringList: [String]
+  computedTemporal: _Neo4jDateTime
+  computedObjectWithCypherParams: currentUserId
+  customWithArguments(strArg: String, strInputArg: strInput): String
   Genre(_id: String, name: String, first: Int, offset: Int, orderBy: [_GenreOrdering]): [Genre]
   Actor(userId: ID, name: String, _id: String, first: Int, offset: Int, orderBy: [_ActorOrdering]): [Actor]
-  User(userId: ID, name: String, _id: String, first: Int, offset: Int, orderBy: [_UserOrdering]): [User]
   Book(genre: BookGenre, _id: String, first: Int, offset: Int, orderBy: [_BookOrdering]): [Book]
-  TemporalNode(datetime: _Neo4jDateTimeInput, name: String, time: _Neo4jTimeInput, date: _Neo4jDateInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput, localdatetimes: _Neo4jLocalDateTimeInput, _id: String, first: Int, offset: Int, orderBy: [_TemporalNodeOrdering]): [TemporalNode]
+  TemporalNode(datetime: _Neo4jDateTimeInput, name: String, time: _Neo4jTimeInput, date: _Neo4jDateInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput, localdatetimes: _Neo4jLocalDateTimeInput, computedTimestamp: String, _id: String, first: Int, offset: Int, orderBy: [_TemporalNodeOrdering]): [TemporalNode]
 }
 
 type Rated {
   from: User
+  currentUserId(strArg: String): String
   rating: Int
   ratings: [Int]
   time: _Neo4jTime
@@ -538,10 +600,20 @@ type Rated {
   to: Movie
 }
 
+enum Role {
+  reader
+  user
+  admin
+}
+
 type State {
   customField: String
   name: String!
   _id: String
+}
+
+input strInput {
+  strArg: String
 }
 
 type TemporalNode {
@@ -552,6 +624,7 @@ type TemporalNode {
   localtime: _Neo4jLocalTime
   localdatetime: _Neo4jLocalDateTime
   localdatetimes: [_Neo4jLocalDateTime]
+  computedTimestamp: String
   temporalNodes(time: _Neo4jTimeInput, date: _Neo4jDateInput, datetime: _Neo4jDateTimeInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput, first: Int, offset: Int, orderBy: [_TemporalNodeOrdering]): [TemporalNode]
   _id: String
 }
@@ -561,8 +634,10 @@ scalar Time
 type User implements Person {
   userId: ID!
   name: String
+  currentUserId(strArg: String = "Neo4j", strInputArg: strInput): String
   rated(rating: Int, time: _Neo4jTimeInput, date: _Neo4jDateInput, datetime: _Neo4jDateTimeInput, localtime: _Neo4jLocalTimeInput, localdatetime: _Neo4jLocalDateTimeInput): [_UserRated]
   friends: _UserFriendsDirections
+  favorites(first: Int, offset: Int, orderBy: [_MovieOrdering]): [Movie]
   _id: String
 }
 `;
