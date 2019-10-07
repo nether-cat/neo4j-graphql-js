@@ -38,7 +38,8 @@ export function buildCypherSelection({
   resolveInfo,
   paramIndex = 1,
   parentSelectionInfo = {},
-  secondParentSelectionInfo = {}
+  secondParentSelectionInfo = {},
+  injectedParams
 }) {
   if (!selections.length) {
     return [initial, {}];
@@ -239,6 +240,7 @@ export function buildCypherSelection({
     schemaType: innerSchemaType,
     resolveInfo,
     cypherParams,
+    injectedParams,
     parentSelectionInfo: {
       fieldName,
       schemaType,
@@ -313,7 +315,8 @@ export function buildCypherSelection({
         isInlineFragment,
         interfaceLabel,
         innerSchemaType,
-        temporalClauses
+        temporalClauses,
+        injectedParams
       })
     );
   } else if (schemaTypeRelation) {

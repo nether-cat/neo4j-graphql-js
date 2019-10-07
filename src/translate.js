@@ -102,7 +102,8 @@ export const relationFieldOnNodeType = ({
   skipLimit,
   commaIfTail,
   tailParams,
-  temporalClauses
+  temporalClauses,
+  injectedParams
 }) => {
   const arrayFilterParams = _.pickBy(
     filterParams,
@@ -555,8 +556,8 @@ export const translateQuery = ({
       nonNullParams,
       filterParams,
       temporalArgs,
-      _id,
-      injectedParams
+      injectedParams,
+      _id
     });
   }
 };
@@ -632,8 +633,8 @@ const nodeQuery = ({
   nonNullParams,
   filterParams,
   temporalArgs,
-  _id,
-  injectedParams
+  injectedParams,
+  _id
 }) => {
   const safeVariableName = safeVar(variableName);
   const safeLabelName = safeLabel(typeName);
@@ -644,7 +645,8 @@ const nodeQuery = ({
     variableName,
     schemaType,
     resolveInfo,
-    paramIndex: 1
+    paramIndex: 1,
+    injectedParams
   });
   const params = { ...nonNullParams, ...subParams };
   if (cypherParams) {
@@ -685,7 +687,12 @@ const nodeQuery = ({
     .join(' AND ');
   const predicate = predicateClauses ? `WHERE ${predicateClauses} ` : '';
 
+  const { precedingStatements = [] } = injectedParams;
+
   const query =
+    `${
+      precedingStatements.length ? [...precedingStatements, ''].join(' ') : ''
+    }` +
     `MATCH (${safeVariableName}:${safeLabelName} ${argString}) ${predicate}` +
     `RETURN ${safeVariableName} {${subQuery}} AS ${safeVariableName}${orderByValue} ${outerSkipLimit}`;
 
